@@ -185,6 +185,29 @@ export default function AdminDashboard() {
     };
   }, [matchId]);
 
+  useEffect(() => {
+  // Expose for debugging
+  (window as any).debugAdminPC = () => {
+    const pcs = Array.from(peerConnectionsRef.current.values());
+    if (pcs.length > 0) {
+      const pc = pcs[0];
+      return {
+        connectionState: pc.connectionState,
+        iceConnectionState: pc.iceConnectionState,
+        iceGatheringState: pc.iceGatheringState,
+        signalingState: pc.signalingState,
+        receivers: pc.getReceivers().length,
+        senders: pc.getSenders().length
+      };
+    }
+    else
+    {
+      console.warn('No peer connections found');
+    }
+    return null;
+  };
+}, []);
+
   const initiateConnection = (broadcaster: BroadcasterInfo) => {
     console.log('\n────────────────────────────────────');
     console.log('🔗 INITIATING WebRTC CONNECTION');
@@ -195,6 +218,9 @@ export default function AdminDashboard() {
     const peerConnection = new RTCPeerConnection({
       iceServers: STUN_SERVERS,
     });
+
+    // Add after the useEffect hook (around line 200)
+
 
     // ════════════════════════════════════════════════
     // TRACK HANDLER
