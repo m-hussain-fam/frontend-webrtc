@@ -89,7 +89,7 @@ export default function AdminDashboard() {
       console.log('\n✨ NEW BROADCASTER JOINED');
       console.log('Camera:', data.cameraId);
       console.log('ID:', data.broadcasterId);
-      
+
       setBroadcasters((prev) => new Map(prev).set(data.cameraId.toString(), data));
 
       setCameras((prev) =>
@@ -163,7 +163,7 @@ export default function AdminDashboard() {
 
       console.log(`\n🧊 ICE Candidate #${currentCount} (Camera ${cameraNum})`);
       console.log('From:', data.from?.substring(0, 8) + '...');
-      
+
       const pc = peerConnectionsRef.current.get(data.from);
       if (pc && data.candidate) {
         try {
@@ -186,27 +186,26 @@ export default function AdminDashboard() {
   }, [matchId]);
 
   useEffect(() => {
-  // Expose for debugging
-  (window as any).debugAdminPC = () => {
-    const pcs = Array.from(peerConnectionsRef.current.values());
-    if (pcs.length > 0) {
-      const pc = pcs[0];
-      return {
-        connectionState: pc.connectionState,
-        iceConnectionState: pc.iceConnectionState,
-        iceGatheringState: pc.iceGatheringState,
-        signalingState: pc.signalingState,
-        receivers: pc.getReceivers().length,
-        senders: pc.getSenders().length
-      };
-    }
-    else
-    {
-      console.warn('No peer connections found');
-    }
-    return null;
-  };
-}, []);
+    // Expose for debugging
+    (window as any).debugAdminPC = () => {
+      const pcs = Array.from(peerConnectionsRef.current.values());
+      if (pcs.length > 0) {
+        const pc = pcs[0];
+        return {
+          connectionState: pc.connectionState,
+          iceConnectionState: pc.iceConnectionState,
+          iceGatheringState: pc.iceGatheringState,
+          signalingState: pc.signalingState,
+          receivers: pc.getReceivers().length,
+          senders: pc.getSenders().length
+        };
+      }
+      else {
+        console.warn('No peer connections found');
+      }
+      return null;
+    };
+  }, []);
 
   const initiateConnection = (broadcaster: BroadcasterInfo) => {
     console.log('\n────────────────────────────────────');
@@ -272,17 +271,18 @@ export default function AdminDashboard() {
     peerConnection.onicecandidate = (event) => {
       console.log(`\n🧊 onicecandidate FIRED (Camera ${broadcaster.cameraId})`);
       console.log('Has candidate:', !!event.candidate);
-      
+
       if (event.candidate) {
         console.log('Candidate type:', event.candidate.candidate?.split(' ')[7]);
         console.log('Emitting to broadcaster:', broadcaster.broadcasterId?.substring(0, 8) + '...');
-        
+
         socketRef.current?.emit('ice-candidate', {
           to: broadcaster.broadcasterId,
           candidate: event.candidate,
           cameraId: broadcaster.cameraId,
+          matchId: matchId,
         });
-        
+
         console.log('✅ Emitted to server');
       } else {
         const totalIce = iceCounterRef.current.get(broadcaster.cameraId) || 0;
@@ -305,13 +305,13 @@ export default function AdminDashboard() {
       })
       .then(() => {
         console.log('✅ Local description set');
-        
+
         socketRef.current?.emit('webrtc-offer', {
           to: broadcaster.broadcasterId,
           offer: peerConnection.localDescription,
           cameraId: broadcaster.cameraId,
         });
-        
+
         console.log('✅ Offer sent to broadcaster');
         console.log('⏳ Waiting for answer and ICE candidates...\n');
       })
@@ -339,11 +339,10 @@ export default function AdminDashboard() {
         {cameras.map((camera) => (
           <div
             key={camera.id}
-            className={`relative aspect-square overflow-hidden rounded-lg border-4 transition-all duration-300 ${
-              camera.status === 'connected' 
-                ? 'border-green-500 shadow-lg shadow-green-500/30' 
+            className={`relative aspect-square overflow-hidden rounded-lg border-4 transition-all duration-300 ${camera.status === 'connected'
+                ? 'border-green-500 shadow-lg shadow-green-500/30'
                 : 'border-gray-600'
-            } bg-black`}
+              } bg-black`}
           >
             <video
               ref={(el) => {
