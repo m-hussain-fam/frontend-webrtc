@@ -1,577 +1,3 @@
-// // 'use client';
-
-// // import { useEffect, useRef, useState } from 'react';
-// // import { useParams } from 'next/navigation';
-// // import io from 'socket.io-client';
-
-// // interface Camera {
-// //   id: string;
-// //   number: number;
-// //   status: 'waiting' | 'connected' | 'disconnected';
-// //   broadcasterId?: string;
-// // }
-
-// // interface BroadcasterInfo {
-// //   broadcasterId: string;
-// //   cameraId: number;
-// //   status: string;
-// // }
-
-// // const STUN_SERVERS = [
-// //   { urls: ['stun:stun.l.google.com:19302'] },
-// //   { urls: ['stun:stun1.l.google.com:19302'] },
-// // ];
-
-// // export default function AdminDashboard() {
-// //   const params = useParams();
-// //   const matchId = params.matchId as string;
-// //   const socketRef = useRef<any>(null);
-
-// //   const videoRefs = useRef<Map<number, HTMLVideoElement>>(new Map());
-// //   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
-
-// //   const [cameras, setCameras] = useState<Camera[]>([
-// //     { id: 'cam1', number: 1, status: 'waiting' },
-// //     { id: 'cam2', number: 2, status: 'waiting' },
-// //     { id: 'cam3', number: 3, status: 'waiting' },
-// //     { id: 'cam4', number: 4, status: 'waiting' },
-// //   ]);
-
-// //   const [broadcasters, setBroadcasters] = useState<Map<string, BroadcasterInfo>>(new Map());
-
-// //   useEffect(() => {
-// //     socketRef.current = io('https://signaling-server-2-production.up.railway.app/', {
-// //       reconnection: true,
-// //       reconnectionDelay: 1000,
-// //       reconnectionDelayMax: 5000,
-// //       reconnectionAttempts: 5,
-// //     });
-
-// //     socketRef.current.emit('join-room', {
-// //       matchId,
-// //       role: 'admin',
-// //     });
-
-// //     socketRef.current.on('room-broadcasters', (data: { broadcasters: BroadcasterInfo[] }) => {
-// //       console.log('Current broadcasters:', data.broadcasters);
-// //       data.broadcasters.forEach((broadcaster) => {
-// //         setBroadcasters((prev) => new Map(prev).set(broadcaster.cameraId.toString(), broadcaster));
-// //         initiateConnection(broadcaster);
-// //       });
-// //     });
-
-// //     socketRef.current.on('broadcaster-joined', (data: BroadcasterInfo) => {
-// //       console.log('New broadcaster joined:', data);
-// //       setBroadcasters((prev) => new Map(prev).set(data.cameraId.toString(), data));
-
-// //       setCameras((prev) =>
-// //         prev.map((cam) =>
-// //           cam.number === data.cameraId ? { ...cam, status: 'connected', broadcasterId: data.broadcasterId } : cam
-// //         )
-// //       );
-
-// //       initiateConnection(data);
-// //     });
-
-// //     socketRef.current.on('broadcaster-disconnected', (data: { broadcasterId: string; cameraId: number }) => {
-// //       console.log('Broadcaster disconnected:', data);
-
-// //       const pc = peerConnectionsRef.current.get(data.broadcasterId);
-// //       if (pc) {
-// //         pc.close();
-// //         peerConnectionsRef.current.delete(data.broadcasterId);
-// //       }
-
-// //       const videoRef = videoRefs.current.get(data.cameraId);
-// //       if (videoRef) {
-// //         videoRef.srcObject = null;
-// //       }
-
-// //       setCameras((prev) =>
-// //         prev.map((cam) =>
-// //           cam.number === data.cameraId ? { ...cam, status: 'waiting', broadcasterId: undefined } : cam
-// //         )
-// //       );
-
-// //       setBroadcasters((prev) => {
-// //         const updated = new Map(prev);
-// //         updated.delete(data.cameraId.toString());
-// //         return updated;
-// //       });
-// //     });
-
-// //     socketRef.current.on('webrtc-answer', async (data: { from: string; answer: RTCSessionDescriptionInit; cameraId: number }) => {
-// //       console.log('Received answer from camera', data.cameraId);
-
-// //       const pc = peerConnectionsRef.current.get(data.from);
-// //       if (pc) {
-// //         try {
-// //           await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-// //           console.log('Remote description set for camera', data.cameraId);
-// //         } catch (error) {
-// //           console.error('Error setting remote description:', error);
-// //         }
-// //       }
-// //     });
-
-// //     socketRef.current.on('ice-candidate', (data: { from: string; candidate: RTCIceCandidateInit; cameraId: number }) => {
-// //       const pc = peerConnectionsRef.current.get(data.from);
-// //       if (pc && data.candidate) {
-// //         try {
-// //           pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-// //         } catch (error) {
-// //           console.error('Error adding ICE candidate:', error);
-// //         }
-// //       }
-// //     });
-
-// //     return () => {
-// //       socketRef.current?.disconnect();
-// //       peerConnectionsRef.current.forEach((pc) => pc.close());
-// //     };
-// //   }, [matchId]);
-
-// //   const initiateConnection = (broadcaster: BroadcasterInfo) => {
-// //     const peerConnection = new RTCPeerConnection({
-// //       iceServers: STUN_SERVERS,
-// //     });
-
-// //     peerConnection.ontrack = (event) => {
-// //       console.log('Track received from camera', broadcaster.cameraId);
-// //       const videoRef = videoRefs.current.get(broadcaster.cameraId);
-// //       if (videoRef) {
-// //         videoRef.srcObject = event.streams[0];
-// //       }
-// //     };
-
-// //     peerConnection.onconnectionstatechange = () => {
-// //       console.log(`Camera ${broadcaster.cameraId} connection state:`, peerConnection.connectionState);
-
-// //       if (peerConnection.connectionState === 'connected') {
-// //         setCameras((prev) =>
-// //           prev.map((cam) =>
-// //             cam.number === broadcaster.cameraId ? { ...cam, status: 'connected' } : cam
-// //           )
-// //         );
-// //       } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected') {
-// //         setCameras((prev) =>
-// //           prev.map((cam) =>
-// //             cam.number === broadcaster.cameraId ? { ...cam, status: 'disconnected' } : cam
-// //           )
-// //         );
-// //       }
-// //     };
-
-// //     peerConnection.onicecandidate = (event) => {
-// //       if (event.candidate) {
-// //         socketRef.current?.emit('ice-candidate', {
-// //           to: broadcaster.broadcasterId,
-// //           candidate: event.candidate,
-// //           cameraId: broadcaster.cameraId,
-// //         });
-// //       }
-// //     };
-
-// //     peerConnection
-// //       .createOffer()
-// //       .then((offer) => {
-// //         return peerConnection.setLocalDescription(offer);
-// //       })
-// //       .then(() => {
-// //         socketRef.current?.emit('webrtc-offer', {
-// //           to: broadcaster.broadcasterId,
-// //           offer: peerConnection.localDescription,
-// //           cameraId: broadcaster.cameraId,
-// //         });
-// //         console.log('Offer sent to broadcaster - Camera', broadcaster.cameraId);
-// //       })
-// //       .catch((error) => console.error('Error creating offer:', error));
-
-// //     peerConnectionsRef.current.set(broadcaster.broadcasterId, peerConnection);
-// //   };
-
-// //   const connectedCount = cameras.filter((c) => c.status === 'connected').length;
-
-// //   return (
-// //     <div className="min-h-screen bg-black px-6 py-8 text-white">
-// //       {/* Header */}
-// //       <div className="mb-8">
-// //         <h1 className="mb-2 text-4xl font-bold">🎬 Cricket Match Live Stream</h1>
-// //         <p className="text-gray-400">
-// //           Match ID: {matchId} | Status: {connectedCount}/4 cameras connected
-// //         </p>
-// //       </div>
-
-// //       {/* 2x2 Grid Layout */}
-// //       <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:max-w-5xl">
-// //         {cameras.map((camera) => (
-// //           <div
-// //             key={camera.id}
-// //             className={`relative aspect-square overflow-hidden rounded-lg border-4 ${
-// //               camera.status === 'connected' ? 'border-green-500' : 'border-gray-600'
-// //             } bg-black`}
-// //           >
-// //             <video
-// //               ref={(el) => {
-// //                 if (el) videoRefs.current.set(camera.number, el);
-// //               }}
-// //               autoPlay
-// //               playsInline
-// //               className="h-full w-full object-cover"
-// //             />
-
-// //             {/* Status Badge */}
-// //             <div className="absolute right-3 top-3 flex items-center gap-2 rounded bg-black/70 px-3 py-2">
-// //               {camera.status === 'waiting' && (
-// //                 <div className="h-3 w-3 animate-pulse rounded-full bg-yellow-500"></div>
-// //               )}
-// //               {camera.status === 'connected' && (
-// //                 <div className="h-3 w-3 rounded-full bg-green-500 shadow-lg shadow-green-500/50"></div>
-// //               )}
-// //               {camera.status === 'disconnected' && (
-// //                 <div className="h-3 w-3 rounded-full bg-red-500 shadow-lg shadow-red-500/50"></div>
-// //               )}
-// //               <span className="text-xs font-medium capitalize text-white">{camera.status}</span>
-// //             </div>
-
-// //             {/* Camera Label */}
-// //             <div className="absolute bottom-3 left-3 rounded bg-black/70 px-4 py-2">
-// //               <p className="text-sm font-bold text-white">Camera {camera.number}</p>
-// //             </div>
-// //           </div>
-// //         ))}
-// //       </div>
-
-// //       {/* Debug Info */}
-// //       <div className="rounded-lg bg-gray-900 p-4 lg:max-w-5xl">
-// //         <p className="mb-3 text-xs font-bold text-white">
-// //           📊 Connected Broadcasters: {broadcasters.size}
-// //         </p>
-// //         {Array.from(broadcasters.values()).map((b) => (
-// //           <p key={b.broadcasterId} className="text-xs font-mono text-green-400">
-// //             ✓ Camera {b.cameraId} - {b.broadcasterId}
-// //           </p>
-// //         ))}
-// //       </div>
-// //     </div>
-// //   );
-// // }
-
-
-
-// 'use client';
-
-// import { useEffect, useRef, useState } from 'react';
-// import { useParams } from 'next/navigation';
-// import io from 'socket.io-client';
-
-// interface Camera {
-//   id: string;
-//   number: number;
-//   status: 'waiting' | 'connected' | 'disconnected';
-//   broadcasterId?: string;
-// }
-
-// interface BroadcasterInfo {
-//   broadcasterId: string;
-//   cameraId: number;
-//   status: string;
-// }
-
-// const STUN_SERVERS = [
-//   { urls: ['stun:stun.l.google.com:19302'] },
-//   { urls: ['stun:stun1.l.google.com:19302'] },
-// ];
-
-// export default function AdminDashboard() {
-//   const params = useParams();
-//   const matchId = params.matchId as string;
-//   const socketRef = useRef<any>(null);
-
-//   const videoRefs = useRef<Map<number, HTMLVideoElement>>(new Map());
-//   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
-//   const signalingStateRef = useRef<Map<string, RTCSignalingState>>(new Map());
-
-//   const [cameras, setCameras] = useState<Camera[]>([
-//     { id: 'cam1', number: 1, status: 'waiting' },
-//     { id: 'cam2', number: 2, status: 'waiting' },
-//     { id: 'cam3', number: 3, status: 'waiting' },
-//     { id: 'cam4', number: 4, status: 'waiting' },
-//   ]);
-
-//   const [broadcasters, setBroadcasters] = useState<Map<string, BroadcasterInfo>>(new Map());
-
-//   useEffect(() => {
-//     console.log('🎬 Initializing Admin Dashboard');
-//     console.log('🎯 Match ID:', matchId);
-
-//     socketRef.current = io('https://signaling-server-2-production.up.railway.app/', {
-//       reconnection: true,
-//       reconnectionDelay: 1000,
-//       reconnectionDelayMax: 5000,
-//       reconnectionAttempts: 5,
-//       transports: ['websocket', 'polling'],
-//     });
-
-//     socketRef.current.on('connect', () => {
-//       console.log('✅ ADMIN SOCKET CONNECTED - Socket ID:', socketRef.current.id);
-
-//       socketRef.current.emit('join-room', {
-//         matchId,
-//         role: 'admin',
-//       });
-//       console.log('🚪 Admin joined room:', matchId);
-//     });
-
-//     socketRef.current.on('connect_error', (error: any) => {
-//       console.error('❌ ADMIN CONNECTION ERROR:', error);
-//     });
-
-//     socketRef.current.on('disconnect', () => {
-//       console.log('❌ ADMIN SOCKET DISCONNECTED');
-//     });
-
-//     socketRef.current.on('room-broadcasters', (data: { broadcasters: BroadcasterInfo[] }) => {
-//       console.log('📋 Current broadcasters in room:', data.broadcasters);
-//       data.broadcasters.forEach((broadcaster) => {
-//         setBroadcasters((prev) => new Map(prev).set(broadcaster.cameraId.toString(), broadcaster));
-//         initiateConnection(broadcaster);
-//       });
-//     });
-
-//     socketRef.current.on('broadcaster-joined', (data: BroadcasterInfo) => {
-//       console.log('✨ New broadcaster joined:', data);
-//       setBroadcasters((prev) => new Map(prev).set(data.cameraId.toString(), data));
-
-//       setCameras((prev) =>
-//         prev.map((cam) =>
-//           cam.number === data.cameraId ? { ...cam, status: 'connected', broadcasterId: data.broadcasterId } : cam
-//         )
-//       );
-
-//       initiateConnection(data);
-//     });
-
-//     socketRef.current.on('broadcaster-disconnected', (data: { broadcasterId: string; cameraId: number }) => {
-//       console.log('👋 Broadcaster disconnected:', data);
-
-//       const pc = peerConnectionsRef.current.get(data.broadcasterId);
-//       if (pc) {
-//         pc.close();
-//         peerConnectionsRef.current.delete(data.broadcasterId);
-//         signalingStateRef.current.delete(data.broadcasterId);
-//       }
-
-//       const videoRef = videoRefs.current.get(data.cameraId);
-//       if (videoRef) {
-//         videoRef.srcObject = null;
-//       }
-
-//       setCameras((prev) =>
-//         prev.map((cam) =>
-//           cam.number === data.cameraId ? { ...cam, status: 'waiting', broadcasterId: undefined } : cam
-//         )
-//       );
-
-//       setBroadcasters((prev) => {
-//         const updated = new Map(prev);
-//         updated.delete(data.cameraId.toString());
-//         return updated;
-//       });
-//     });
-
-//     socketRef.current.on('webrtc-answer', async (data: { from: string; answer: RTCSessionDescriptionInit; cameraId: number }) => {
-//       console.log('📨 Received answer from camera', data.cameraId);
-
-//       const pc = peerConnectionsRef.current.get(data.from);
-//       if (pc) {
-//         try {
-//           const currentState = pc.signalingState;
-//           console.log(`📡 Camera ${data.cameraId} signaling state:`, currentState);
-
-//           if (currentState === 'have-local-offer') {
-//             await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-//             console.log('✅ Remote description set for camera', data.cameraId);
-//             signalingStateRef.current.set(data.from, pc.signalingState);
-//           } else {
-//             console.warn(`⚠️ Cannot set answer - wrong state: ${currentState} for camera ${data.cameraId}`);
-//           }
-//         } catch (error) {
-//           console.error('❌ Error setting remote description:', error);
-//         }
-//       }
-//     });
-
-//     socketRef.current.on('ice-candidate', (data: { from: string; candidate: RTCIceCandidateInit; cameraId: number }) => {
-//       const pc = peerConnectionsRef.current.get(data.from);
-//       if (pc && data.candidate) {
-//         try {
-//           pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-//           console.log('🧊 ICE candidate added for camera', data.cameraId);
-//         } catch (error) {
-//           console.error('❌ Error adding ICE candidate:', error);
-//         }
-//       }
-//     });
-
-//     return () => {
-//       console.log('🧹 Cleaning up Admin Dashboard');
-//       socketRef.current?.disconnect();
-//       peerConnectionsRef.current.forEach((pc) => pc.close());
-//     };
-//   }, [matchId]);
-
-//   const initiateConnection = (broadcaster: BroadcasterInfo) => {
-//     console.log('🔗 Initiating WebRTC connection for camera', broadcaster.cameraId);
-
-//     const peerConnection = new RTCPeerConnection({
-//       iceServers: STUN_SERVERS,
-//     });
-
-//     peerConnection.ontrack = (event) => {
-//       console.log('📹 Track received from camera', broadcaster.cameraId, '- Track kind:', event.track.kind);
-//       const videoRef = videoRefs.current.get(broadcaster.cameraId);
-//       if (videoRef) {
-//         videoRef.srcObject = event.streams[0];
-//         console.log('✅ Video stream attached to camera', broadcaster.cameraId);
-//       }
-//       setTimeout(() => {
-//         console.log(`📊 Admin PC State for Camera ${broadcaster.cameraId}:`);
-//         console.log('  - Connection:', peerConnection.connectionState);
-//         console.log('  - ICE:', peerConnection.iceConnectionState);
-//         console.log('  - Receiver count:', peerConnection.getReceivers().length);
-//         const videoRef = videoRefs.current.get(broadcaster.cameraId);
-//         console.log('  - Video Ref exists:', !!videoRef);
-//         console.log('  - Video srcObject:', !!videoRef?.srcObject);
-//       }, 3000);
-//     };
-
-//     peerConnection.onconnectionstatechange = () => {
-//       console.log(`📡 Camera ${broadcaster.cameraId} connection state:`, peerConnection.connectionState);
-
-//       if (peerConnection.connectionState === 'connected') {
-//         console.log('✅ Camera', broadcaster.cameraId, 'fully connected and streaming');
-//         setCameras((prev) =>
-//           prev.map((cam) =>
-//             cam.number === broadcaster.cameraId ? { ...cam, status: 'connected' } : cam
-//           )
-//         );
-//       } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected') {
-//         console.error('❌ Camera', broadcaster.cameraId, 'connection failed or disconnected');
-//         setCameras((prev) =>
-//           prev.map((cam) =>
-//             cam.number === broadcaster.cameraId ? { ...cam, status: 'disconnected' } : cam
-//           )
-//         );
-//       }
-//     };
-
-//     peerConnection.oniceconnectionstatechange = () => {
-//       console.log(`🧊 Camera ${broadcaster.cameraId} ICE connection state:`, peerConnection.iceConnectionState);
-//     };
-
-//     peerConnection.onicecandidate = (event) => {
-//       if (event.candidate) {
-//         console.log('🧊 Emitting ICE candidate for camera', broadcaster.cameraId);
-//         socketRef.current?.emit('ice-candidate', {
-//           to: broadcaster.broadcasterId,
-//           candidate: event.candidate,
-//           cameraId: broadcaster.cameraId,
-//         });
-//       }
-//     };
-
-//     peerConnection
-//       .createOffer()
-//       .then((offer) => {
-//         console.log('📤 Created offer for camera', broadcaster.cameraId);
-//         return peerConnection.setLocalDescription(offer);
-//       })
-//       .then(() => {
-//         socketRef.current?.emit('webrtc-offer', {
-//           to: broadcaster.broadcasterId,
-//           offer: peerConnection.localDescription,
-//           cameraId: broadcaster.cameraId,
-//         });
-//         console.log('✅ Offer sent to camera', broadcaster.cameraId);
-//       })
-//       .catch((error) => console.error('❌ Error creating offer for camera', broadcaster.cameraId, ':', error));
-
-//     peerConnectionsRef.current.set(broadcaster.broadcasterId, peerConnection);
-//   };
-
-//   const connectedCount = cameras.filter((c) => c.status === 'connected').length;
-
-//   return (
-//     <div className="min-h-screen bg-black px-6 py-8 text-white">
-//       {/* Header */}
-//       <div className="mb-8">
-//         <h1 className="mb-2 text-4xl font-bold">🎬 Cricket Match Live Stream</h1>
-//         <p className="text-gray-400">
-//           Match ID: {matchId} | Status: {connectedCount}/4 cameras connected
-//         </p>
-//       </div>
-
-//       {/* 2x2 Grid Layout */}
-//       <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:max-w-5xl">
-//         {cameras.map((camera) => (
-//           <div
-//             key={camera.id}
-//             className={`relative aspect-square overflow-hidden rounded-lg border-4 transition-all ${camera.status === 'connected' ? 'border-green-500' : 'border-gray-600'
-//               } bg-black`}
-//           >
-//             <video
-//               ref={(el) => {
-//                 if (el) videoRefs.current.set(camera.number, el);
-//               }}
-//               autoPlay
-//               playsInline
-//               className="h-full w-full object-cover"
-//             />
-
-//             {/* Status Badge */}
-//             <div className="absolute right-3 top-3 flex items-center gap-2 rounded bg-black/70 px-3 py-2">
-//               {camera.status === 'waiting' && (
-//                 <div className="h-3 w-3 animate-pulse rounded-full bg-yellow-500"></div>
-//               )}
-//               {camera.status === 'connected' && (
-//                 <div className="h-3 w-3 rounded-full bg-green-500 shadow-lg shadow-green-500/50"></div>
-//               )}
-//               {camera.status === 'disconnected' && (
-//                 <div className="h-3 w-3 rounded-full bg-red-500 shadow-lg shadow-red-500/50"></div>
-//               )}
-//               <span className="text-xs font-medium capitalize text-white">{camera.status}</span>
-//             </div>
-
-//             {/* Camera Label */}
-//             <div className="absolute bottom-3 left-3 rounded bg-black/70 px-4 py-2">
-//               <p className="text-sm font-bold text-white">Camera {camera.number}</p>
-//             </div>
-//           </div>
-//         ))}
-//       </div>
-
-//       {/* Debug Info */}
-//       <div className="rounded-lg bg-gray-900 p-4 lg:max-w-5xl">
-//         <p className="mb-3 text-xs font-bold text-white">
-//           📊 Connected Broadcasters: {broadcasters.size}
-//         </p>
-//         {broadcasters.size === 0 ? (
-//           <p className="text-xs text-gray-400">Waiting for cameras to connect...</p>
-//         ) : (
-//           Array.from(broadcasters.values()).map((b) => (
-//             <p key={b.broadcasterId} className="text-xs font-mono text-green-400">
-//               ✓ Camera {b.cameraId} - {b.broadcasterId}
-//             </p>
-//           ))
-//         )}
-//       </div>
-//     </div>
-//   );
-// }
-
-
-
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
@@ -594,6 +20,7 @@ interface BroadcasterInfo {
 const STUN_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:stun2.l.google.com:19302' },
 ];
 
 export default function AdminDashboard() {
@@ -603,7 +30,7 @@ export default function AdminDashboard() {
 
   const videoRefs = useRef<Map<number, HTMLVideoElement>>(new Map());
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
-  const signalingStateRef = useRef<Map<string, RTCSignalingState>>(new Map());
+  const iceCounterRef = useRef<Map<number, number>>(new Map());
 
   const [cameras, setCameras] = useState<Camera[]>([
     { id: 'cam1', number: 1, status: 'waiting' },
@@ -615,8 +42,11 @@ export default function AdminDashboard() {
   const [broadcasters, setBroadcasters] = useState<Map<string, BroadcasterInfo>>(new Map());
 
   useEffect(() => {
-    console.log('🎬 Initializing Admin Dashboard');
-    console.log('🎯 Match ID:', matchId);
+    console.log('\n════════════════════════════════════');
+    console.log('🎬 ADMIN DASHBOARD STARTUP');
+    console.log('════════════════════════════════════');
+    console.log('Match ID:', matchId);
+    console.log('Timestamp:', new Date().toLocaleTimeString());
 
     socketRef.current = io('https://signaling-server-2-production.up.railway.app/', {
       reconnection: true,
@@ -627,7 +57,8 @@ export default function AdminDashboard() {
     });
 
     socketRef.current.on('connect', () => {
-      console.log('✅ ADMIN SOCKET CONNECTED - Socket ID:', socketRef.current.id);
+      console.log('\n✅ SOCKET CONNECTED');
+      console.log('Socket ID:', socketRef.current.id);
 
       socketRef.current.emit('join-room', {
         matchId,
@@ -637,23 +68,28 @@ export default function AdminDashboard() {
     });
 
     socketRef.current.on('connect_error', (error: any) => {
-      console.error('❌ ADMIN CONNECTION ERROR:', error);
+      console.error('❌ CONNECTION ERROR:', error);
     });
 
     socketRef.current.on('disconnect', () => {
-      console.log('❌ ADMIN SOCKET DISCONNECTED');
+      console.log('❌ SOCKET DISCONNECTED');
     });
 
     socketRef.current.on('room-broadcasters', (data: { broadcasters: BroadcasterInfo[] }) => {
-      console.log('📋 Current broadcasters in room:', data.broadcasters);
-      data.broadcasters.forEach((broadcaster) => {
-        setBroadcasters((prev) => new Map(prev).set(broadcaster.cameraId.toString(), broadcaster));
-        initiateConnection(broadcaster);
+      console.log('\n📋 ROOM BROADCASTERS');
+      console.log('Count:', data.broadcasters.length);
+      data.broadcasters.forEach((b) => {
+        console.log(`   - Camera ${b.cameraId}: ${b.broadcasterId}`);
+        setBroadcasters((prev) => new Map(prev).set(b.cameraId.toString(), b));
+        initiateConnection(b);
       });
     });
 
     socketRef.current.on('broadcaster-joined', (data: BroadcasterInfo) => {
-      console.log('✨ New broadcaster joined:', data);
+      console.log('\n✨ NEW BROADCASTER JOINED');
+      console.log('Camera:', data.cameraId);
+      console.log('ID:', data.broadcasterId);
+      
       setBroadcasters((prev) => new Map(prev).set(data.cameraId.toString(), data));
 
       setCameras((prev) =>
@@ -662,17 +98,18 @@ export default function AdminDashboard() {
         )
       );
 
+      iceCounterRef.current.set(data.cameraId, 0);
       initiateConnection(data);
     });
 
     socketRef.current.on('broadcaster-disconnected', (data: { broadcasterId: string; cameraId: number }) => {
-      console.log('👋 Broadcaster disconnected:', data);
+      console.log('\n👋 BROADCASTER DISCONNECTED');
+      console.log('Camera:', data.cameraId);
 
       const pc = peerConnectionsRef.current.get(data.broadcasterId);
       if (pc) {
         pc.close();
         peerConnectionsRef.current.delete(data.broadcasterId);
-        signalingStateRef.current.delete(data.broadcasterId);
       }
 
       const videoRef = videoRefs.current.get(data.cameraId);
@@ -691,23 +128,27 @@ export default function AdminDashboard() {
         updated.delete(data.cameraId.toString());
         return updated;
       });
+
+      iceCounterRef.current.delete(data.cameraId);
     });
 
     socketRef.current.on('webrtc-answer', async (data: { from: string; answer: RTCSessionDescriptionInit; cameraId: number }) => {
-      console.log('📨 Received answer from camera', data.cameraId);
+      console.log('\n📨 RECEIVED WebRTC ANSWER');
+      console.log('From:', data.from?.substring(0, 8) + '...');
+      console.log('Camera:', data.cameraId);
 
       const pc = peerConnectionsRef.current.get(data.from);
       if (pc) {
         try {
           const currentState = pc.signalingState;
-          console.log(`📡 Camera ${data.cameraId} signaling state:`, currentState);
+          console.log('Signaling state:', currentState);
 
           if (currentState === 'have-local-offer') {
             await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-            console.log('✅ Remote description set for camera', data.cameraId);
-            signalingStateRef.current.set(data.from, pc.signalingState);
+            console.log('✅ Remote description set');
+            console.log('⏳ Waiting for ICE candidates...');
           } else {
-            console.warn(`⚠️ Cannot set answer - wrong state: ${currentState} for camera ${data.cameraId}`);
+            console.warn('⚠️ Wrong signaling state:', currentState);
           }
         } catch (error) {
           console.error('❌ Error setting remote description:', error);
@@ -716,60 +157,80 @@ export default function AdminDashboard() {
     });
 
     socketRef.current.on('ice-candidate', (data: { from: string; candidate: RTCIceCandidateInit; cameraId: number }) => {
-      console.log('\n📥 Admin received ICE candidate from mobile');
-      console.log('   From:', data.from);
-      console.log('   Camera:', data.cameraId);
+      const cameraNum = data.cameraId;
+      const currentCount = (iceCounterRef.current.get(cameraNum) || 0) + 1;
+      iceCounterRef.current.set(cameraNum, currentCount);
+
+      console.log(`\n🧊 ICE Candidate #${currentCount} (Camera ${cameraNum})`);
+      console.log('From:', data.from?.substring(0, 8) + '...');
       
       const pc = peerConnectionsRef.current.get(data.from);
       if (pc && data.candidate) {
         try {
           pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-          console.log('🧊 ICE candidate added for camera', data.cameraId);
+          console.log('✅ Added successfully');
         } catch (error) {
           console.error('❌ Error adding ICE candidate:', error);
         }
       } else {
-        if (!pc) console.error('❌ PC not found for:', data.from);
+        if (!pc) console.error('❌ PC not found');
         if (!data.candidate) console.error('❌ Candidate missing');
       }
     });
 
     return () => {
-      console.log('🧹 Cleaning up Admin Dashboard');
+      console.log('\n🧹 CLEANUP: Disconnecting...');
       socketRef.current?.disconnect();
       peerConnectionsRef.current.forEach((pc) => pc.close());
     };
   }, [matchId]);
 
   const initiateConnection = (broadcaster: BroadcasterInfo) => {
-    console.log('\n🔗 Initiating WebRTC connection for camera', broadcaster.cameraId);
-    console.log('   Broadcaster ID:', broadcaster.broadcasterId);
+    console.log('\n────────────────────────────────────');
+    console.log('🔗 INITIATING WebRTC CONNECTION');
+    console.log('────────────────────────────────────');
+    console.log('Camera:', broadcaster.cameraId);
+    console.log('Broadcaster ID:', broadcaster.broadcasterId);
 
     const peerConnection = new RTCPeerConnection({
       iceServers: STUN_SERVERS,
     });
 
+    // ════════════════════════════════════════════════
+    // TRACK HANDLER
+    // ════════════════════════════════════════════════
+
     peerConnection.ontrack = (event) => {
-      console.log('📹 Track received from camera', broadcaster.cameraId, '- Track kind:', event.track.kind);
+      console.log(`\n📹 TRACK RECEIVED (Camera ${broadcaster.cameraId})`);
+      console.log('Track kind:', event.track.kind);
+      console.log('Stream count:', event.streams.length);
+
       const videoRef = videoRefs.current.get(broadcaster.cameraId);
       if (videoRef) {
         videoRef.srcObject = event.streams[0];
-        console.log('✅ Video stream attached to camera', broadcaster.cameraId);
+        console.log('✅ Video element updated');
+      } else {
+        console.warn('⚠️ Video ref not found');
       }
     };
 
-    peerConnection.onconnectionstatechange = () => {
-      console.log(`📡 Camera ${broadcaster.cameraId} connection state:`, peerConnection.connectionState);
+    // ════════════════════════════════════════════════
+    // CONNECTION STATE
+    // ════════════════════════════════════════════════
 
-      if (peerConnection.connectionState === 'connected') {
-        console.log('✅ Camera', broadcaster.cameraId, 'fully connected and streaming');
+    peerConnection.onconnectionstatechange = () => {
+      const state = peerConnection.connectionState;
+      console.log(`\n📡 CONNECTION STATE (Camera ${broadcaster.cameraId}):`, state);
+
+      if (state === 'connected') {
+        console.log('✅ ✅ ✅ FULLY CONNECTED & STREAMING!');
         setCameras((prev) =>
           prev.map((cam) =>
             cam.number === broadcaster.cameraId ? { ...cam, status: 'connected' } : cam
           )
         );
-      } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected') {
-        console.error('❌ Camera', broadcaster.cameraId, 'connection failed or disconnected');
+      } else if (state === 'failed' || state === 'disconnected') {
+        console.error('❌ Connection issue');
         setCameras((prev) =>
           prev.map((cam) =>
             cam.number === broadcaster.cameraId ? { ...cam, status: 'disconnected' } : cam
@@ -779,17 +240,16 @@ export default function AdminDashboard() {
     };
 
     peerConnection.oniceconnectionstatechange = () => {
-      console.log(`🧊 Camera ${broadcaster.cameraId} ICE connection state:`, peerConnection.iceConnectionState);
+      console.log(`🧊 ICE State (Camera ${broadcaster.cameraId}):`, peerConnection.iceConnectionState);
     };
 
-    // ============ ENHANCED ICE LOGGING ============
     peerConnection.onicecandidate = (event) => {
-      console.log('\n🧊 onicecandidate EVENT FIRED for camera', broadcaster.cameraId);
-      console.log('   Has candidate:', !!event.candidate);
+      console.log(`\n🧊 onicecandidate FIRED (Camera ${broadcaster.cameraId})`);
+      console.log('Has candidate:', !!event.candidate);
       
       if (event.candidate) {
-        console.log('   Candidate type:', event.candidate.candidate);
-        console.log('   Emitting to broadcaster:', broadcaster.broadcasterId);
+        console.log('Candidate type:', event.candidate.candidate?.split(' ')[7]);
+        console.log('Emitting to broadcaster:', broadcaster.broadcasterId?.substring(0, 8) + '...');
         
         socketRef.current?.emit('ice-candidate', {
           to: broadcaster.broadcasterId,
@@ -797,29 +257,41 @@ export default function AdminDashboard() {
           cameraId: broadcaster.cameraId,
         });
         
-        console.log('   ✅ ICE candidate emitted to server\n');
+        console.log('✅ Emitted to server');
       } else {
-        console.log('   → ICE gathering complete (no more candidates)\n');
+        const totalIce = iceCounterRef.current.get(broadcaster.cameraId) || 0;
+        console.log(`→ ICE gathering completed (${totalIce} total candidates)`);
       }
     };
+
+    // ════════════════════════════════════════════════
+    // CREATE OFFER
+    // ════════════════════════════════════════════════
+
+    console.log('\n📤 Creating offer...');
 
     peerConnection
       .createOffer()
       .then((offer) => {
-        console.log('📤 Created offer for camera', broadcaster.cameraId);
+        console.log('✅ Offer created');
+        console.log('SDP length:', offer.sdp?.length);
         return peerConnection.setLocalDescription(offer);
       })
       .then(() => {
-        console.log('✅ Local description set for camera', broadcaster.cameraId);
+        console.log('✅ Local description set');
+        
         socketRef.current?.emit('webrtc-offer', {
           to: broadcaster.broadcasterId,
           offer: peerConnection.localDescription,
           cameraId: broadcaster.cameraId,
         });
-        console.log('✅ Offer sent to camera', broadcaster.cameraId);
+        
+        console.log('✅ Offer sent to broadcaster');
         console.log('⏳ Waiting for answer and ICE candidates...\n');
       })
-      .catch((error) => console.error('❌ Error creating offer for camera', broadcaster.cameraId, ':', error));
+      .catch((error) => {
+        console.error('❌ Error creating offer:', error);
+      });
 
     peerConnectionsRef.current.set(broadcaster.broadcasterId, peerConnection);
   };
@@ -832,7 +304,7 @@ export default function AdminDashboard() {
       <div className="mb-8">
         <h1 className="mb-2 text-4xl font-bold">🎬 Cricket Match Live Stream</h1>
         <p className="text-gray-400">
-          Match ID: {matchId} | Status: {connectedCount}/4 cameras connected
+          Match ID: {matchId} | Status: <span className="text-green-400 font-bold">{connectedCount}/4</span> cameras connected
         </p>
       </div>
 
@@ -841,8 +313,11 @@ export default function AdminDashboard() {
         {cameras.map((camera) => (
           <div
             key={camera.id}
-            className={`relative aspect-square overflow-hidden rounded-lg border-4 transition-all ${camera.status === 'connected' ? 'border-green-500' : 'border-gray-600'
-              } bg-black`}
+            className={`relative aspect-square overflow-hidden rounded-lg border-4 transition-all duration-300 ${
+              camera.status === 'connected' 
+                ? 'border-green-500 shadow-lg shadow-green-500/30' 
+                : 'border-gray-600'
+            } bg-black`}
           >
             <video
               ref={(el) => {
@@ -854,12 +329,12 @@ export default function AdminDashboard() {
             />
 
             {/* Status Badge */}
-            <div className="absolute right-3 top-3 flex items-center gap-2 rounded bg-black/70 px-3 py-2">
+            <div className="absolute right-3 top-3 flex items-center gap-2 rounded bg-black/80 backdrop-blur px-3 py-2 border border-gray-700">
               {camera.status === 'waiting' && (
                 <div className="h-3 w-3 animate-pulse rounded-full bg-yellow-500"></div>
               )}
               {camera.status === 'connected' && (
-                <div className="h-3 w-3 rounded-full bg-green-500 shadow-lg shadow-green-500/50"></div>
+                <div className="h-3 w-3 rounded-full bg-green-500 shadow-lg shadow-green-500/50 animate-pulse"></div>
               )}
               {camera.status === 'disconnected' && (
                 <div className="h-3 w-3 rounded-full bg-red-500 shadow-lg shadow-red-500/50"></div>
@@ -868,7 +343,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Camera Label */}
-            <div className="absolute bottom-3 left-3 rounded bg-black/70 px-4 py-2">
+            <div className="absolute bottom-3 left-3 rounded bg-black/80 backdrop-blur px-4 py-2 border border-gray-700">
               <p className="text-sm font-bold text-white">Camera {camera.number}</p>
             </div>
           </div>
@@ -876,19 +351,42 @@ export default function AdminDashboard() {
       </div>
 
       {/* Debug Info */}
-      <div className="rounded-lg bg-gray-900 p-4 lg:max-w-5xl">
+      <div className="rounded-lg bg-gray-900/80 backdrop-blur p-4 lg:max-w-5xl border border-gray-800">
         <p className="mb-3 text-xs font-bold text-white">
           📊 Connected Broadcasters: {broadcasters.size}
         </p>
         {broadcasters.size === 0 ? (
           <p className="text-xs text-gray-400">Waiting for cameras to connect...</p>
         ) : (
-          Array.from(broadcasters.values()).map((b) => (
-            <p key={b.broadcasterId} className="text-xs font-mono text-green-400">
-              ✓ Camera {b.cameraId} - {b.broadcasterId}
-            </p>
-          ))
+          <div className="space-y-2">
+            {Array.from(broadcasters.values()).map((b) => (
+              <div key={b.broadcasterId} className="flex justify-between text-xs">
+                <span className="text-green-400 font-mono">✓ Camera {b.cameraId}</span>
+                <span className="text-gray-500">{b.broadcasterId?.substring(0, 12)}...</span>
+              </div>
+            ))}
+          </div>
         )}
+      </div>
+
+      {/* Connection Info */}
+      <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4 lg:max-w-5xl">
+        <div className="bg-gray-900/80 backdrop-blur rounded p-4 border border-gray-800">
+          <p className="text-xs text-gray-400">Total Cameras</p>
+          <p className="text-2xl font-bold">4</p>
+        </div>
+        <div className="bg-gray-900/80 backdrop-blur rounded p-4 border border-gray-800">
+          <p className="text-xs text-gray-400">Connected</p>
+          <p className="text-2xl font-bold text-green-400">{connectedCount}</p>
+        </div>
+        <div className="bg-gray-900/80 backdrop-blur rounded p-4 border border-gray-800">
+          <p className="text-xs text-gray-400">Waiting</p>
+          <p className="text-2xl font-bold text-yellow-400">{4 - connectedCount}</p>
+        </div>
+        <div className="bg-gray-900/80 backdrop-blur rounded p-4 border border-gray-800">
+          <p className="text-xs text-gray-400">Match</p>
+          <p className="text-lg font-mono text-gray-300">{matchId?.substring(0, 8)}</p>
+        </div>
       </div>
     </div>
   );
