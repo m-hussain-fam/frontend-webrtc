@@ -1,8 +1,12 @@
+
+
+
 // 'use client';
 
 // import { useEffect, useRef, useState } from 'react';
 // import { useParams, useSearchParams } from 'next/navigation';
 // import io from 'socket.io-client';
+// import { Toaster, toast } from 'sonner';
 
 // interface ConnectionStatus {
 //   status: 'waiting' | 'connecting' | 'connected' | 'error';
@@ -29,73 +33,138 @@
 //   const videoRef = useRef<HTMLVideoElement>(null);
 //   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
 //   const localStreamRef = useRef<MediaStream | null>(null);
+//   const toastIdRef = useRef<string | number | null>(null);
 
 //   useEffect(() => {
 //     const urlCameraId = searchParams.get('cameraId');
 //     const finalCameraId = urlCameraId ? parseInt(urlCameraId, 10) : 1;
 //     setCameraId(finalCameraId);
 
-//     socketRef.current = io('http://signaling-server-2-production.up.railway.app/', {
+//     console.log('🎬 Starting Mobile Camera Setup');
+//     console.log('📱 Camera ID:', finalCameraId);
+//     console.log('🎯 Match ID:', matchId);
+
+//     toast.info('🎬 Initializing camera setup...', { duration: 2000 });
+
+//     const socketUrl = 'https://signaling-server-2-production.up.railway.app';
+
+//     socketRef.current = io(socketUrl, {
 //       reconnection: true,
 //       reconnectionDelay: 1000,
 //       reconnectionDelayMax: 5000,
 //       reconnectionAttempts: 5,
+//       secure: false,
+//       rejectUnauthorized: false,
 //     });
 
+//     // Connection events
+//     socketRef.current.on('connect', () => {
+//       console.log('✅ MOBILE SOCKET CONNECTED - Socket ID:', socketRef.current.id);
+//       console.log('🔗 Server URL:', socketUrl);
+
+//       toast.success('✅ Connected to server!', {
+//         description: `Socket ID: ${socketRef.current.id.substring(0, 8)}...`,
+//         duration: 3000,
+//       });
+//     });
+
+//     socketRef.current.on('disconnect', () => {
+//       console.log('❌ MOBILE SOCKET DISCONNECTED');
+//       toast.error('❌ Disconnected from server', { duration: 2000 });
+//     });
+
+//     socketRef.current.on('connect_error', (error: any) => {
+//       console.error('❌ MOBILE CONNECTION ERROR:', error);
+//       toast.error('❌ Connection Error', {
+//         description: error.message || 'Failed to connect to server',
+//         duration: 3000,
+//       });
+//     });
+
+//     // WebRTC offer from admin
 //     socketRef.current.on('webrtc-offer', async (data: { from: string; offer: RTCSessionDescriptionInit; cameraId: number }) => {
-//       console.log('Received offer from admin - Camera', data.cameraId);
+//       console.log('📨 Received WebRTC Offer from Admin');
+//       console.log('  - From:', data.from);
+//       console.log('  - Camera ID:', data.cameraId);
+
+//       toast.loading('📨 Received offer from admin, connecting...', { id: 'webrtc-offer' });
 //       setStatus({ status: 'connecting', message: 'Establishing connection...' });
 
 //       try {
 //         const pc = peerConnectionRef.current;
 //         if (pc && localStreamRef.current) {
+//           console.log('📍 Setting remote description...');
 //           await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+
+//           console.log('🎬 Creating answer...');
 //           const answer = await pc.createAnswer();
 //           await pc.setLocalDescription(answer);
 
+//           console.log('📤 Sending answer back to admin...');
 //           socketRef.current.emit('webrtc-answer', {
 //             to: data.from,
 //             answer: pc.localDescription,
 //             cameraId: data.cameraId,
 //           });
 
-//           console.log('Answer sent to admin');
+//           console.log('✅ Answer sent successfully');
+//           toast.success('📤 Answer sent to admin!', { id: 'webrtc-offer', duration: 2000 });
+//         } else {
+//           console.error('❌ PeerConnection or localStream not available');
+//           toast.error('❌ Connection error', { id: 'webrtc-offer', duration: 2000 });
 //         }
 //       } catch (error) {
-//         console.error('Error handling offer:', error);
+//         console.error('❌ Error handling offer:', error);
+//         toast.error('❌ Connection failed', { id: 'webrtc-offer', duration: 2000 });
 //         setStatus({ status: 'error', message: 'Connection failed' });
 //       }
 //     });
 
+//     // ICE candidates
 //     socketRef.current.on('ice-candidate', (data: { from: string; candidate: RTCIceCandidateInit; cameraId: number }) => {
+//       console.log('🧊 Received ICE Candidate');
 //       if (peerConnectionRef.current && data.candidate) {
 //         try {
 //           peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
 //         } catch (error) {
-//           console.error('Error adding ICE candidate:', error);
+//           console.error('❌ Error adding ICE candidate:', error);
 //         }
 //       }
 //     });
 
+//     // Admin disconnected
 //     socketRef.current.on('admin-disconnected', () => {
-//       console.log('Admin disconnected');
+//       console.log('❌ Admin disconnected from server');
+//       toast.warning('⚠️ Admin disconnected', { duration: 2000 });
 //       setStatus({ status: 'waiting', message: 'Admin disconnected, waiting for reconnection...' });
 //     });
 
+//     // Admin joined (confirmation)
+//     socketRef.current.on('admin-joined', (data: any) => {
+//       console.log('✅ ADMIN JOINED - Admin ID:', data.adminId);
+//       toast.success('✅ Admin is here!', { duration: 2000 });
+//     });
+
+//     // Start camera after socket is ready
 //     setTimeout(() => {
+//       console.log('⏱️ Starting camera setup...');
 //       startCamera(finalCameraId);
 //     }, 500);
 
 //     return () => {
+//       console.log('🧹 Cleaning up Mobile Camera...');
 //       socketRef.current?.disconnect();
 //       peerConnectionRef.current?.close();
 //       localStreamRef.current?.getTracks().forEach((track) => track.stop());
 //     };
-//   }, [searchParams]);
+//   }, [searchParams, matchId]);
 
 //   const startCamera = async (finalCameraId: number) => {
 //     try {
+//       console.log('📹 Requesting camera access...');
 //       setStatus({ status: 'connecting', message: 'Requesting camera access...' });
+
+//       toast.loading('📹 Requesting camera access...', { id: 'camera-setup' });
 
 //       const stream = await navigator.mediaDevices.getUserMedia({
 //         video: {
@@ -103,27 +172,37 @@
 //           height: { ideal: 720 },
 //           facingMode: 'environment',
 //         },
-//         audio: false,
+//         audio: true,
 //       });
 
+//       console.log('✅ Camera access granted');
 //       localStreamRef.current = stream;
 
 //       if (videoRef.current) {
 //         videoRef.current.srcObject = stream;
+//         console.log('✅ Video stream attached to element');
 //       }
 
+//       toast.success('✅ Camera access granted!', { id: 'camera-setup', duration: 2000 });
+
+//       // Setup WebRTC
+//       console.log('🔗 Setting up WebRTC Peer Connection...');
 //       const peerConnection = new RTCPeerConnection({
 //         iceServers: STUN_SERVERS,
 //       });
 
 //       peerConnectionRef.current = peerConnection;
 
+//       // Add tracks
 //       stream.getTracks().forEach((track) => {
+//         console.log('📤 Adding track:', track.kind);
 //         peerConnection.addTrack(track, stream);
 //       });
 
+//       // ICE candidate handling
 //       peerConnection.onicecandidate = (event) => {
 //         if (event.candidate) {
+//           console.log('🧊 Emitting ICE candidate');
 //           socketRef.current?.emit('ice-candidate', {
 //             to: null,
 //             candidate: event.candidate,
@@ -132,15 +211,29 @@
 //         }
 //       };
 
+//       // Connection state changes
 //       peerConnection.onconnectionstatechange = () => {
-//         console.log('Connection state:', peerConnection.connectionState);
+//         const state = peerConnection.connectionState;
+//         console.log('📡 WebRTC Connection State:', state);
 
-//         if (peerConnection.connectionState === 'connected') {
+//         if (state === 'connected') {
+//           console.log('✅ WebRTC CONNECTED - Video streaming!');
+//           toast.success('✅ WebRTC Connected - Streaming!', { duration: 3000 });
 //           setStatus({ status: 'connected', message: 'Connected to stream' });
-//         } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected') {
+//         } else if (state === 'failed' || state === 'disconnected') {
+//           console.log('❌ WebRTC Connection', state);
+//           toast.error(`❌ Connection ${state}`, { duration: 2000 });
 //           setStatus({ status: 'error', message: 'Connection lost' });
 //         }
 //       };
+
+//       // Join room
+//       console.log('🚪 Joining room as broadcaster...');
+//       console.log('  - Match ID:', matchId);
+//       console.log('  - Role: broadcaster');
+//       console.log('  - Camera ID:', finalCameraId);
+
+//       toast.loading('🚪 Joining room...', { id: 'join-room' });
 
 //       socketRef.current?.emit('join-room', {
 //         matchId,
@@ -148,9 +241,21 @@
 //         cameraId: finalCameraId,
 //       });
 
+//       console.log('✅ Join-room event emitted');
+//       toast.success('🚪 Joined room! Waiting for admin...', { id: 'join-room', duration: 2000 });
 //       setStatus({ status: 'waiting', message: 'Waiting for admin to connect...' });
 //     } catch (error: any) {
-//       console.error('Error accessing camera:', error);
+//       console.error('❌ Camera Error:', error);
+//       console.error('  - Name:', error.name);
+//       console.error('  - Message:', error.message);
+
+//       toast.error('❌ Camera Error', {
+//         description: error.name === 'NotAllowedError'
+//           ? 'Camera permission denied'
+//           : error.message,
+//         duration: 3000,
+//       });
+
 //       setStatus({
 //         status: 'error',
 //         message: error.name === 'NotAllowedError' ? 'Camera permission denied' : 'Camera error: ' + error.message,
@@ -169,6 +274,19 @@
 
 //   return (
 //     <div className="min-h-screen bg-gray-900 px-4 py-6 text-white md:px-6">
+//       <Toaster
+//         position="top-center"
+//         richColors
+//         theme="dark"
+//         toastOptions={{
+//           classNames: {
+//             toast: 'w-full max-w-md mx-auto',
+//             title: 'text-lg font-semibold',
+//             description: 'text-sm text-gray-300',
+//           },
+//         }}
+//       />
+
 //       <style>{`
 //         @keyframes spin {
 //           to { transform: rotate(360deg); }
@@ -241,7 +359,6 @@
 // }
 
 
-
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
@@ -274,7 +391,6 @@ export default function MobileCamera() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
-  const toastIdRef = useRef<string | number | null>(null);
 
   useEffect(() => {
     const urlCameraId = searchParams.get('cameraId');
@@ -294,8 +410,7 @@ export default function MobileCamera() {
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       reconnectionAttempts: 5,
-      secure: false,
-      rejectUnauthorized: false,
+      transports: ['websocket', 'polling'],
     });
 
     // Connection events
@@ -312,6 +427,7 @@ export default function MobileCamera() {
     socketRef.current.on('disconnect', () => {
       console.log('❌ MOBILE SOCKET DISCONNECTED');
       toast.error('❌ Disconnected from server', { duration: 2000 });
+      setStatus({ status: 'waiting', message: 'Disconnected, attempting to reconnect...' });
     });
 
     socketRef.current.on('connect_error', (error: any) => {
@@ -333,7 +449,22 @@ export default function MobileCamera() {
 
       try {
         const pc = peerConnectionRef.current;
-        if (pc && localStreamRef.current) {
+        if (!pc) {
+          console.error('❌ PeerConnection not initialized');
+          toast.error('❌ Connection error', { id: 'webrtc-offer', duration: 2000 });
+          return;
+        }
+
+        if (!localStreamRef.current) {
+          console.error('❌ Local stream not available');
+          toast.error('❌ Stream error', { id: 'webrtc-offer', duration: 2000 });
+          return;
+        }
+
+        const signalingState = pc.signalingState;
+        console.log('📡 Signaling state before answer:', signalingState);
+
+        if (signalingState === 'stable') {
           console.log('📍 Setting remote description...');
           await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
 
@@ -351,8 +482,8 @@ export default function MobileCamera() {
           console.log('✅ Answer sent successfully');
           toast.success('📤 Answer sent to admin!', { id: 'webrtc-offer', duration: 2000 });
         } else {
-          console.error('❌ PeerConnection or localStream not available');
-          toast.error('❌ Connection error', { id: 'webrtc-offer', duration: 2000 });
+          console.warn('⚠️ Cannot process offer - wrong signaling state:', signalingState);
+          toast.warning('⚠️ Connection already in progress', { id: 'webrtc-offer', duration: 2000 });
         }
       } catch (error) {
         console.error('❌ Error handling offer:', error);
@@ -363,10 +494,10 @@ export default function MobileCamera() {
 
     // ICE candidates
     socketRef.current.on('ice-candidate', (data: { from: string; candidate: RTCIceCandidateInit; cameraId: number }) => {
-      console.log('🧊 Received ICE Candidate');
       if (peerConnectionRef.current && data.candidate) {
         try {
           peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
+          console.log('🧊 ICE candidate added');
         } catch (error) {
           console.error('❌ Error adding ICE candidate:', error);
         }
@@ -417,6 +548,8 @@ export default function MobileCamera() {
       });
 
       console.log('✅ Camera access granted');
+      console.log('📊 Stream tracks:', stream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled })));
+      
       localStreamRef.current = stream;
 
       if (videoRef.current) {
@@ -428,11 +561,25 @@ export default function MobileCamera() {
 
       // Setup WebRTC
       console.log('🔗 Setting up WebRTC Peer Connection...');
+      
+      if (peerConnectionRef.current) {
+        peerConnectionRef.current.close();
+      }
+
       const peerConnection = new RTCPeerConnection({
         iceServers: STUN_SERVERS,
       });
 
       peerConnectionRef.current = peerConnection;
+
+      // startCamera function mein, after peerConnection setup
+setTimeout(() => {
+  console.log('📊 Mobile PC State after 3s:');
+  console.log('  - Connection:', peerConnectionRef.current?.connectionState);
+  console.log('  - ICE:', peerConnectionRef.current?.iceConnectionState);
+  console.log('  - Signaling:', peerConnectionRef.current?.signalingState);
+  console.log('  - Track count:', peerConnectionRef.current?.getSenders().length);
+}, 3000);
 
       // Add tracks
       stream.getTracks().forEach((track) => {
@@ -468,6 +615,16 @@ export default function MobileCamera() {
         }
       };
 
+      // ICE connection state
+      peerConnection.oniceconnectionstatechange = () => {
+        console.log('🧊 ICE Connection State:', peerConnection.iceConnectionState);
+      };
+
+      // Signaling state tracking
+      peerConnection.onsignalingstatechange = () => {
+        console.log('🔄 Signaling State:', peerConnection.signalingState);
+      };
+
       // Join room
       console.log('🚪 Joining room as broadcaster...');
       console.log('  - Match ID:', matchId);
@@ -490,16 +647,20 @@ export default function MobileCamera() {
       console.error('  - Name:', error.name);
       console.error('  - Message:', error.message);
 
+      const errorMessage = error.name === 'NotAllowedError' 
+        ? 'Camera permission denied' 
+        : error.name === 'NotFoundError'
+        ? 'No camera found'
+        : error.message || 'Unknown error';
+
       toast.error('❌ Camera Error', {
-        description: error.name === 'NotAllowedError'
-          ? 'Camera permission denied'
-          : error.message,
+        description: errorMessage,
         duration: 3000,
       });
 
       setStatus({
         status: 'error',
-        message: error.name === 'NotAllowedError' ? 'Camera permission denied' : 'Camera error: ' + error.message,
+        message: errorMessage,
       });
     }
   };
@@ -546,7 +707,7 @@ export default function MobileCamera() {
 
       {/* Video Container */}
       <div className="mb-6 max-w-2xl">
-        <div className={`relative aspect-square overflow-hidden rounded-lg border-4 ${colors.border} bg-black`}>
+        <div className={`relative aspect-square overflow-hidden rounded-lg border-4 transition-all ${colors.border} bg-black`}>
           <video ref={videoRef} autoPlay playsInline muted className="h-full w-full object-cover" />
 
           {/* Status Overlay */}
