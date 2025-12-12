@@ -287,7 +287,7 @@ export default function MobileCamera() {
 
     toast.info('🎬 Initializing camera setup...', { duration: 2000 });
 
-    const socketUrl = 'http://signaling-server-2-production.up.railway.app';
+    const socketUrl = 'https://signaling-server-2-production.up.railway.app';
 
     socketRef.current = io(socketUrl, {
       reconnection: true,

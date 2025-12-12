@@ -40,7 +40,7 @@ export default function AdminDashboard() {
   const [broadcasters, setBroadcasters] = useState<Map<string, BroadcasterInfo>>(new Map());
 
   useEffect(() => {
-    socketRef.current = io('http://signaling-server-2-production.up.railway.app/', {
+    socketRef.current = io('https://signaling-server-2-production.up.railway.app/', {
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
