@@ -497,6 +497,7 @@ export default function MobileCamera() {
       if (peerConnectionRef.current && data.candidate) {
         try {
           peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
+          toast.success("ice candidate added");
           console.log('🧊 ICE candidate added');
         } catch (error) {
           console.error('❌ Error adding ICE candidate:', error);
